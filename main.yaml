@@ -29,10 +29,6 @@
     - import_role:
         name: nagios-plugins-install
     - import_role:
-        name: nagios-core-custom-scripts-deploy
-    - import_role:
-        name: nagios-remote-custom-scripts-deploy
-    - import_role:
         name: nagios-start-core
 
 # ===========================================================================
@@ -48,7 +44,5 @@
         name: nrpe-install
     - import_role:
         name: nagios-plugins-install
-    - import_role:
-        name: nagios-remote-custom-scripts-deploy
     - import_role:
         name: nagios-start-remote
