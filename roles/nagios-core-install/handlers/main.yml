@@ -1,0 +1,6 @@
+---
+# handlers file for roles/nagios-core-install
+- name: Restart Apache web server
+  service:
+    name: apache2
+    state: restarted

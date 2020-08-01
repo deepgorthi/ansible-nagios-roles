@@ -1,0 +1,90 @@
+---
+# tasks file for roles/nagios-core-install
+
+- name: check if dir exists
+  stat:
+    path: /tmp
+  register: is_dir
+
+- name: is_dir true
+  debug:
+    msg: /tmp directory exists
+  when: is_dir.stat.exists
+
+- name: Create dir if it does not exist
+  file:
+    path: /tmp
+    state: directory
+  when: is_dir.stat.exists == false
+
+- name: Unarchive nagioscore to /tmp on nagios core VM
+  unarchive:
+    src: "{{ nagios_binary_files }}/nagioscore.tar.gz"
+    dest: /tmp
+    list_files: yes
+  register: nagios_core_archive_contents
+
+- name: Compile Nagios core code
+  become_method: sudo
+  command: "{{ item }} chdir=/tmp/{{ nagios_core_archive_contents.files[0] }}" 
+  with_items:
+    - "./configure --with-httpd-conf=/etc/apache2/sites-enabled"
+
+- name: Build 'all' target Nagios core code
+  become_method: sudo
+  make:
+    chdir: /tmp/{{ nagios_core_archive_contents.files[0] }}
+    target: all
+
+- name: Create nagios user and group
+  become_method: sudo
+  command: "{{ item }} chdir=/tmp/{{ nagios_core_archive_contents.files[0] }}" 
+  with_items:
+    - "make install-groups-users"
+    - "usermod -a -G nagios www-data"
+    - "usermod -aG sudo nagios"
+
+- name: Install binaries, service, commandmode and base config files
+  become_method: sudo      
+  command: "{{ item }} chdir=/tmp/{{ nagios_core_archive_contents.files[0] }}" 
+  with_items:
+    - "make install"
+    - "make install-daemoninit"
+    - "make install-commandmode"
+    - "make install-config"
+
+- name: Install apache config files
+  become_method: sudo      
+  command: "{{ item }} chdir=/tmp/{{ nagios_core_archive_contents.files[0] }}"
+  with_items:
+    - "make install-webconf"
+    - "a2enmod rewrite"
+    - "a2enmod cgi"
+
+- name: check whether ufw status is present
+  shell: ufw status
+  changed_when: False
+  ignore_errors: True
+  register: ufw_check
+
+- debug:
+    msg: "{{ ufw_check }}"
+
+- name: Configure firewall on the VM
+  ufw:
+    rule: allow
+    name: Apache
+    state: reloaded
+  when: "'not found' not in ufw_check.stdout"
+
+- name: User creation for Admin GUI
+  htpasswd:
+    path: /usr/local/nagios/etc/htpasswd.users
+    name: nagiosadmin
+    password: "{{ adminguipasswd }}"
+    state: present
+    create: yes
+  tags: admingui
+  notify:
+    - Restart Apache web server
+    
