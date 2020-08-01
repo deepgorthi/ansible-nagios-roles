@@ -1,0 +1,71 @@
+---
+# tasks file for roles/nagios-core-pre-install
+
+- name: Test for proxy line
+  shell: grep -c "^one.proxy.att.com:8888" /etc/environment || true
+  register: test_proxy_line
+- name: Add proxy line if it does not exist in /etc/environment
+  lineinfile:
+    dest: /etc/environment
+    line: "{{ item.line }}"
+  with_items:
+    - { line: 'http_proxy={{ http_proxy }}' }
+    - { line: 'https_proxy={{ https_proxy }}' }
+  when: test_proxy_line.stdout == "0"
+- name: source the shell
+  shell: . /etc/environment
+  when: test_proxy_line.stdout == "0"
+
+- name: Check if selinux is present
+  stat:
+    path: /etc/selinux/config
+  register: is_selinux
+
+- name: Check if selinux is enabled
+  lineinfile:
+    dest: /etc/selinux/config
+    regex: "^SELINUX=enabled"
+    line: "SELINUX=permissive"
+  when: is_selinux.stat.exists
+
+- name: Update apt cache if the last one is more than a day ago
+  apt:
+    update_cache: yes
+    cache_valid_time: 86400
+
+- name: Install libraries needed for Nagios Core VM
+  apt:
+    name:
+      - autoconf 
+      - gcc
+      - libc6
+      - make
+      - libssl-dev 
+      - wget
+      - openssl
+      - unzip
+      - apache2
+      - apache2-utils 
+      - php 
+      - libapache2-mod-php7.2
+      - libgd-dev
+      - python3-passlib
+      - sysstat
+    state: present
+
+- name: Install libraries needed for NRPE on Core VMs
+  apt:
+    name:
+      - automake
+      - libmcrypt-dev 
+    state: present
+- name: Install Plugin libraries on Core VMs
+  apt:
+    name:
+      - bc
+      - gawk
+      - dc
+      - build-essential
+      - snmp
+      - libnet-snmp-perl 
+      - gettext

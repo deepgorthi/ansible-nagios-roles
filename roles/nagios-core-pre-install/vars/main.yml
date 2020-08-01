@@ -1,0 +1,4 @@
+---
+# vars file for roles/nagios-core-pre-install
+http_proxy: http://one.proxy.att.com:8080
+https_proxy: https://one.proxy.att.com:8080
