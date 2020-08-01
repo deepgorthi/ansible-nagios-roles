@@ -1,0 +1,42 @@
+---
+# tasks file for roles/nagios-remote-pre-install
+
+- name: Update apt cache if the last one is more than a day ago
+  apt:
+    update_cache: yes
+    cache_valid_time: 86400
+- name: Install sysstat
+  apt:
+    name: sysstat
+    state: present
+- name: Install libraries needed for NRPE on all VMs
+  apt:
+    name:
+      - autoconf 
+      - automake
+      - gcc
+      - libc6
+      - libmcrypt-dev 
+      - make
+      - libssl-dev 
+      - wget
+      - openssl
+    state: present
+- name: Install Plugin libraries on all VMs
+  apt:
+    name:
+      - autoconf 
+      - gcc 
+      - libc6
+      - libmcrypt-dev
+      - make
+      - libssl-dev 
+      - wget 
+      - bc
+      - gawk
+      - dc
+      - build-essential
+      - snmp
+      - libnet-snmp-perl 
+      - gettext
+    state: present
