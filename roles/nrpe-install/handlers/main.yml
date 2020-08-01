@@ -1,0 +1,13 @@
+---
+# handlers file for roles/nrpe-install
+- name: Enable nrpe service
+  service:
+    name: nrpe.service
+    enabled: yes
+
+- name: Configure ufw to allow NRPE
+  become_method: sudo
+  ufw:
+    rule: allow
+    name: NRPE
+    state: reloaded

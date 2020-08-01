@@ -1,0 +1,126 @@
+---
+# tasks file for roles/nrpe-install
+- name: check if dir exists
+  stat:
+    path: /tmp
+  register: is_dir
+
+- name: is_dir true
+  debug:
+    msg: /tmp directory exists
+  when: is_dir.stat.exists
+
+- name: Create dir if it does not exist
+  file:
+    path: /tmp
+    state: directory
+  when: is_dir.stat.exists == false
+
+- name: Unarchive nagioscore to /tmp on nagios core VM
+  unarchive:
+    src: "{{ nagios_binary_files }}/nrpe.tar.gz"
+    dest: /tmp
+    list_files: yes
+  register: nrpe_archive_contents
+
+- name: Compile NRPE code
+  become_method: sudo
+  command: "{{ item }} chdir=/tmp/{{ nrpe_archive_contents.files[0] }}" 
+  with_items:
+    - "./configure --enable-command-args --with-ssl-lib=/usr/lib/x86_64-linux-gnu/"
+
+- name: Build 'all' target NRPE code
+  become_method: sudo
+  make:
+    chdir: /tmp/{{ nrpe_archive_contents.files[0] }}
+    target: all
+
+- name: Create nagios user and group
+  become_method: sudo
+  command: "{{ item }} chdir=/tmp/{{ nrpe_archive_contents.files[0] }}" 
+  with_items:
+    - "make install-groups-users"
+    - "usermod -aG sudo nagios"
+
+- name: Install Binaries
+  become_method: sudo
+  make:
+    chdir: "/tmp/{{ nrpe_archive_contents.files[0] }}"
+    target: install
+
+- name: Install base config files
+  become_method: sudo      
+  command: "{{ item }} chdir=/tmp/{{ nrpe_archive_contents.files[0] }}" 
+  with_items:
+    - "make install-config"
+
+- name: Test for Nagios services entry
+  become_method: sudo
+  shell: grep -c "^nrpe  5666/tcp" /etc/services || true
+  register: test_nagios_services_entry
+- name: Add nagios line if it does not exist in /etc/services
+  lineinfile:
+    dest: /etc/services
+    line: "{{ item.line }}"
+  with_items:
+    - { line: '' }
+    - { line: '# Nagios services' }
+    - { line: 'nrpe  5666/tcp' }
+  when: test_nagios_services_entry.stdout == "0"
+
+- name: Install nrpe service
+  become_method: sudo
+  command: "{{ item }} chdir=/tmp/{{ nrpe_archive_contents.files[0] }}"
+  with_items:
+    - "make install-init"
+  notify:
+    - Enable nrpe service
+
+- name: check whether ufw status is present
+  shell: ufw status
+  changed_when: False
+  ignore_errors: True
+  register: ufw_check
+
+- debug:
+    msg: "{{ ufw_check }}"
+
+- name: check if ufw applications.d exists
+  stat:
+    path: /etc/ufw/applications.d
+  register: is_ufw_dir
+  when: "'not found' not in ufw_check.stdout"
+
+- name: Check if nagios file exists in ufw
+  become_method: sudo
+  stat:
+    path: /etc/ufw/applications.d/nagios
+  register: is_ufw_nagios
+  when: (is_ufw_dir.stat.exists) and ('not found' not in ufw_check.stdout)
+
+- name: Create nagios file in ufw
+  become_method: sudo
+  file:
+    path: /etc/ufw/applications.d/nagios
+    state: touch
+  when: (is_ufw_dir.stat.exists) and (is_ufw_nagios.stat.exists == false) and ('not found' not in ufw_check.stdout)
+
+- name: Check for nagios file contents in ufw
+  become_method: sudo
+  shell: grep -c "^NRPE" /etc/ufw/applications.d/nagios || true
+  register: is_ufw_nagios_contents
+  when: "'not found' not in ufw_check.stdout"
+
+- name: Add NRPE config to ufw
+  become_method: sudo
+  lineinfile:
+    dest: /etc/ufw/applications.d/nagios
+    line: "{{ item.line }}"
+  with_items:
+    - { line: '[NRPE]' }
+    - { line: 'title=Nagios Remote Plugin Executor' }
+    - { line: 'description=Allows remote execution of Nagios plugins' } 
+    - { line: 'ports=5666/tcp' }
+  when: (is_ufw_dir.stat.exists) and (is_ufw_nagios.stat.exists) and (is_ufw_nagios_contents.stdout == "0") and ('not found' not in ufw_check.stdout)
+  notify:
+    - Configure ufw to allow NRPE
