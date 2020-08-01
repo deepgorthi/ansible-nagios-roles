@@ -1,0 +1,16 @@
+---
+# tasks file for roles/nagios-start-remote
+- name: Start Nagios nrpe service 
+  become_method: sudo
+  service:
+    name: nrpe.service
+    state: started
+  tags: start_nrpe
+
+- name: Check if nrpe is running
+  shell: /usr/local/nagios/libexec/check_nrpe -H 127.0.0.1
+  register: is_nrpe_started
+  tags: start_nrpe
+
+- debug:
+    var: is_nrpe_started.stdout
