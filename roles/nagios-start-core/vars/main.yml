@@ -1,0 +1,4 @@
+---
+# vars file for roles/nagios-start-core
+total_warnings: "{{ nagios_validation.stdout | regex_search('(?<=Total Warnings:).*') | replace(' ','') }}"
+total_errors: "{{ nagios_validation.stdout | regex_search('(?<=Total Errors:).*') | replace(' ','') }}"

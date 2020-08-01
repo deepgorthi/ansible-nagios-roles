@@ -1,0 +1,28 @@
+---
+# tasks file for roles/nagios-start-core
+- name: Verify configuration files syntax before start
+  shell: /usr/local/nagios/bin/nagios -v /usr/local/nagios/etc/nagios.cfg
+  register: nagios_validation
+
+- debug:
+    var: total_warnings
+- debug:
+    var: total_errors
+- debug:
+    msg: "{{ nagios_validation.stdout }}"
+  when: (total_warnings != "0") or (total_errors != "0")
+
+- name: Start Nagios core service 
+  become_method: sudo
+  service:
+    name: nagios.service
+    state: started
+  tags: start_nagios
+
+- name: Check if nagios is running
+  shell: /usr/local/nagios/libexec/check_nagios -F /usr/local/nagios/var/status.dat -e 1 -C "/usr/local/nagios/bin/nagios -d"
+  register: is_nagios_started
+  tags: start_nagios
+
+- debug:
+    var: is_nagios_started.stdout
