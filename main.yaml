@@ -1,0 +1,54 @@
+---
+# ===========================================================================
+# Nagios core install
+# ===========================================================================
+  - hosts: nagios_core
+    become: true
+    gather_facts: no
+    vars_prompt:
+    - name: adminguipasswd
+      prompt: "Enter new admin GUI password"
+      private: yes
+      # encrypt: "md5_crypt"
+      confirm: yes
+      tags: admingui
+    - name: emailaddress
+      prompt: "Enter email address for contact"
+      private: no
+      # default: pg191c@att.com
+    tasks:
+    - import_role:
+        name: nagios-core-pre-install
+      # vars:
+      #   dir: '/opt/a'
+      #   app_port: 5000
+    - import_role:
+        name: nagios-core-install
+    - import_role:
+        name: nrpe-install
+    - import_role:
+        name: nagios-plugins-install
+    - import_role:
+        name: nagios-core-custom-scripts-deploy
+    - import_role:
+        name: nagios-remote-custom-scripts-deploy
+    - import_role:
+        name: nagios-start-core
+
+# ===========================================================================
+# Nagios remote install
+# ===========================================================================
+  - hosts: nagios_remote
+    become: true
+    gather_facts: no
+    tasks:
+    - import_role:
+        name: nagios-remote-pre-install
+    - import_role:
+        name: nrpe-install
+    - import_role:
+        name: nagios-plugins-install
+    - import_role:
+        name: nagios-remote-custom-scripts-deploy
+    - import_role:
+        name: nagios-start-remote
