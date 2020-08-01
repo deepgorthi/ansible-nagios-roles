@@ -1,0 +1,3 @@
+---
+# vars file for roles/nagios-plugins-install
+nagios_binary_files: /apps/zen_repo/ubuntu/18.04/other

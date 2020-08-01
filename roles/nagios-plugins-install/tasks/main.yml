@@ -1,0 +1,26 @@
+---
+# tasks file for roles/nagios-plugins-install
+- name: Unarchive nagios plugins to /tmp on all VMs
+  unarchive:
+    src: "{{ nagios_binary_files }}/nagios-plugins.tar.gz"
+    dest: /tmp
+    list_files: yes
+  register: nagios_plugins_archive_contents
+
+- name: Setup and configure Nagios plugins
+  become_method: sudo
+  command: "{{ item }} chdir=/tmp/{{ nagios_plugins_archive_contents.files[0] }}"
+  with_items:
+    - "./tools/setup"
+    - "./configure"
+
+- name: Compile Nagios plugins with make
+  become_method: sudo
+  make:
+    chdir: "/tmp/{{ nagios_plugins_archive_contents.files[0] }}"
+
+- name: Compile Nagios plugins with make install
+  become_method: sudo
+  make:
+    chdir: "/tmp/{{ nagios_plugins_archive_contents.files[0] }}"
+    target: install
